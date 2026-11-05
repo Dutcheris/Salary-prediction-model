@@ -19,6 +19,7 @@ pip install -r requirements.txt
 python src/predict.py --text "Требуется Python разработчик, знание Django, опыта от 3 лет" --region "Москва"
 ```
 # Структура проекта
+```text
 ├── data/                  # Данные (raw, processed, external)
 ├── notebooks/             # Jupyter-ноутбуки для EDA и экспериментов (Google Colab)
 ├── src/                   # Исходный код
@@ -30,6 +31,7 @@ python src/predict.py --text "Требуется Python разработчик, 
 ├── configs/               # Файлы конфигураций гиперпараметров
 ├── requirements.txt       # Зависимости проекта
 └── README.md              # Этот файл
+```
 # Разработка и вклад
 Проект выполняется в рамках учебной дисциплины "Проектная деятельность 3".
 Если вы хотите предложить улучшения или сообщить об ошибке, то:
