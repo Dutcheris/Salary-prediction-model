@@ -3,12 +3,40 @@
 # Основные возможности:
 
 # Установка
+Для запуска проекта вам понадобится Python 3.9+ (рекомендуется использовать виртуальное окружение).
+```bash
+git clone https://github.com/your-username/salary-prediction-model.git
+cd salary-prediction-model
 
+python -m venv venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
 # Использование
-
+Демонстрационный скрипт можно запустить следующей командой:
+```bash
+python src/predict.py --text "Требуется Python разработчик, знание Django, опыта от 3 лет" --region "Москва"
+```
 # Структура проекта
-
+├── data/                  # Данные (raw, processed, external)
+├── notebooks/             # Jupyter-ноутбуки для EDA и экспериментов (Google Colab)
+├── src/                   # Исходный код
+│   ├── data_collection.py # Скрипты для работы с API и парсинга
+│   ├── preprocessing.py   # Очистка, NER, векторизация, мерж со статистикой
+│   ├── models/            # Скрипты обучения (ElasticNet, CatBoost, Quantile)
+│   ├── interpretation.py  # Генерация SHAP-графиков
+│   └── predict.py         # Демонстрационный скрипт для оценки стоимости
+├── configs/               # Файлы конфигураций гиперпараметров
+├── requirements.txt       # Зависимости проекта
+└── README.md              # Этот файл
 # Разработка и вклад
-
+Проект выполняется в рамках учебной дисциплины "Проектная деятельность 3".
+Если вы хотите предложить улучшения или сообщить об ошибке, то:
+1. Создайте Issue с подробным описанием предложения или проблемы;
+2. Сделайте форк репозитория;
+3. Создайте ветку для вашей фичи (git checkout -b feature/NewFeature);
+4. Сделайте коммит (git commit -m 'Add some feature');
+5. Отправьте pull request.
 # Лицензия
 Этот проект распространяется под лицензией MIT. Подробности смотрите в файле [LICENSE](LICENSE).
