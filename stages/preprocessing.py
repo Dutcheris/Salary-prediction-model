@@ -15,13 +15,11 @@ try:
 except UnicodeDecodeError:
     try:
         df = pd.read_csv('vacancy.csv', sep='|', on_bad_lines='skip', low_memory=False, encoding='utf-8', encoding_errors='ignore')
-        print("Успешно прочитано в кодировке utf-8")
+        print("Успешно прочитано в кодировке utf-8 (с игнорированием битых символов)")
     except Exception as e:
         print(f"Не удалось прочитать файл: {e}")
 
 print(f"Размер таблицы: {df.shape}")
-
-print(df['professionalSphereName'].value_counts().head(20))
 
 import pandas as pd
 
@@ -67,6 +65,127 @@ df_final.head()
 
 print(df_final.columns)
 
-print(df_final['datePublished'].value_counts().head(20))
+import pandas as pd
 
-print(df['datePublished'].value_counts().head(20))
+data = pd.read_csv('data_october2026_raw.csv', sep=',', low_memory=False, encoding='utf-8-sig')
+
+data.head()
+
+len(data)
+
+data = data.drop_duplicates()
+data.shape
+
+count = data["salary"].astype(str).str.contains("от 0", na=False).sum()
+print(count)
+
+pd.set_option('display.max_rows', None)
+
+data.isnull().mean()*100
+
+threshold = 0.7
+missing_ratio = data.isnull().mean()
+cols_to_drop = missing_ratio[missing_ratio > threshold].index.tolist()
+
+print(f"Столбцов с пропусками > 70%: {len(cols_to_drop)}")
+print("Удаляемые столбцы:")
+print(cols_to_drop)
+
+data = data.drop(columns=cols_to_drop)
+
+print(f"Размер таблицы после удаления столбцов: {data.shape}")
+
+data.isnull().mean()*100
+
+data.columns
+
+cols_to_drop_manual = [
+    'isModerated', 'deleted', 'visibility', 'status', 'isQuoted',
+    'premium', 'sourceType', 'changeTime', 'dateModify', 'creationDate',
+
+    'vacancyUrl', 'contactPerson', 'contactList',
+
+    'vacancyAddress', 'vacancyAddressHouse', 'vacancyAddressAdditionalInfo',
+    'addressCode', 'workPlace',
+
+    'needMedcard', 'requiredDrivelicense', 'accommodationCapability',
+    'foreignWorkersCapability', 'isUzbekistanRecruitment', 'workPlaces',
+    'trainingDays', 'shift',
+    'company'
+]
+
+actual_cols_to_drop = [col for col in cols_to_drop_manual if col in data.columns]
+
+print(f"Удаляем следующие вручную отобранные столбцы ({len(actual_cols_to_drop)} шт.):")
+print(actual_cols_to_drop)
+
+data = data.drop(columns=actual_cols_to_drop)
+
+print(f"Размер таблицы после ручной очистки: {data.shape}")
+
+print("\nОставшиеся столбцы для работы:")
+print(data.columns.tolist())
+
+data = data.drop(
+    columns=[
+        'geo',
+        'qualifications',
+        'codeProfession',
+        'professionalSphereName',
+        'federalDistrictCode',
+        'requiredDriveLicense'
+    ],
+    errors='ignore'
+)
+
+data.columns
+
+data.isnull().mean()*100
+
+data.head()
+
+data['stateRegionCode'].unique()
+
+data['vacancyName'].unique()
+
+data['codeProfessionalSphere'].unique()
+
+data['salary'].unique()
+
+data['languageKnowledge'].unique()
+
+data['busyType'].unique()
+
+data['educationRequirements'].unique()
+
+data['hardSkills'].unique()
+
+data['softSkills'].unique()
+
+data['skills'].unique()
+
+data['typicalPosition'].unique()
+
+data['experienceRequirements'].unique()
+
+data['scheduleType'].unique()
+
+data['careerPerspective'].unique()
+
+data['fullCompanyName'].unique()
+
+data['companyBusinessSize'].unique()
+
+data['datePublished'].unique()
+
+data['regionName'].unique()
+
+data['positionRequirements'].unique()
+
+data['salaryMin'].unique()
+
+data['salaryMax'].unique()
+
+data['responsibilities'].unique()
+
+data['conditions'].unique()
