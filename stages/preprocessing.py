@@ -189,3 +189,151 @@ data['salaryMax'].unique()
 data['responsibilities'].unique()
 
 data['conditions'].unique()
+
+!pip install pymorphy3
+
+import pandas as pd
+import numpy as np
+import re
+import ast
+import json
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
+
+
+categorical_cols = ['busyType', 'conditions', 'typicalPosition', 'scheduleType', 'careerPerspective', 'companyBusinessSize', 'regionName']
+for col in categorical_cols:
+    data[col] = data[col].fillna('Не указано')
+
+data['experienceRequirements'] = data['experienceRequirements'].fillna(data['experienceRequirements'].median())
+
+text_cols = ['hardSkills', 'softSkills', 'skills', 'positionRequirements', 'responsibilities', 'educationRequirements']
+for col in text_cols:
+    data[col] = data[col].fillna('')
+
+initial_len = len(data)
+data = data.dropna(subset=['salaryMin', 'salaryMax', 'salary'], how='all')
+
+data['target_salary'] = data[['salaryMin', 'salaryMax']].mean(axis=1)
+
+def parse_salary(s):
+    if pd.isna(s): return np.nan
+    s = str(s).lower().replace(' ', '')
+    nums = re.findall(r'\d+', s)
+    if len(nums) >= 2:
+        return (int(nums[0]) + int(nums[1])) / 2
+    elif len(nums) == 1:
+        return int(nums[0])
+    return np.nan
+
+mask = data['target_salary'].isna() & data['salary'].notna()
+data.loc[mask, 'target_salary'] = data.loc[mask, 'salary'].apply(parse_salary)
+
+data = data.dropna(subset=['target_salary'])
+print(f"Удалено вакансий без зарплаты (Selection Bias): {initial_len - len(data)}")
+
+data = data[(data['target_salary'] > 10000) & (data['target_salary'] < 1000000)]
+
+def clean_json_like_string(text):
+    if not text or text == '[]': return ""
+    try:
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, list):
+            res = []
+            for item in parsed:
+                if isinstance(item, dict):
+                    res.extend([str(v) for v in item.values() if v])
+                else:
+                    res.append(str(item))
+            return " ".join(res)
+        return str(parsed)
+    except:
+        text = str(text)
+        text = re.sub(r"[\[\]\{\}\'\"\n]", " ", text)
+        text = re.sub(r"\'[a-zA-Z_]+\':", " ", text)
+        return text
+
+data['combined_text'] = (
+    data['vacancyName'].astype(str) + " " +
+    data['hardSkills'].apply(clean_json_like_string) + " " +
+    data['softSkills'].apply(clean_json_like_string) + " " +
+    data['skills'].apply(clean_json_like_string) + " " +
+    data['positionRequirements'].astype(str) + " " +
+    data['responsibilities'].astype(str) + " " +
+    data['educationRequirements'].apply(clean_json_like_string)
+)
+
+def clean_text(text):
+    text = str(text).lower()
+    text = re.sub(r"http\S+", "", text)
+    text = re.sub(r"[^а-яёa-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+print("Чистим текст...")
+data['combined_text'] = data['combined_text'].apply(clean_text)
+
+import pymorphy3
+morph = pymorphy3.MorphAnalyzer()
+
+def lemmatize(text):
+    return " ".join([morph.parse(word)[0].normal_form for word in text.split()])
+
+model_name = 'cointegrated/rubert-tiny2'
+print(f"Загружаем модель {model_name}...")
+model = SentenceTransformer(model_name)
+
+print("Генерируем эмбеддинги...")
+texts = data['combined_text'].tolist()
+
+embeddings = model.encode(texts, batch_size=64, show_progress_bar=True, convert_to_numpy=True)
+
+embedding_cols = [f'bert_emb_{i}' for i in range(embeddings.shape[1])]
+df_embeddings = pd.DataFrame(embeddings, columns=embedding_cols, index=data.index)
+
+data_final = pd.concat([data, df_embeddings], axis=1)
+
+cols_to_drop = ['salary', 'salaryMin', 'salaryMax', 'combined_text'] + text_cols
+data_final = data_final.drop(columns=cols_to_drop, errors='ignore')
+
+data_final.to_parquet('it_vacancies_preprocessed.parquet')
+print("Данные сохранены в it_vacancies_preprocessed.parquet")
+
+print(df_embeddings.shape)
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+sns.set_theme(style="whitegrid")
+plt.figure(figsize=(15, 10))
+
+print("Основные статистики target_salary:")
+print(data_final['target_salary'].describe())
+print(f"Медиана: {data_final['target_salary'].median():.2f}")
+print(f"Асимметрия (Skewness): {data_final['target_salary'].skew():.2f}")
+
+plt.subplot(2, 2, 1)
+sns.histplot(data_final['target_salary'], bins=50, kde=True, color='blue')
+plt.title('Распределение зарплат (исходный масштаб)')
+plt.xlabel('Зарплата (руб.)')
+plt.ylabel('Частота')
+
+plt.subplot(2, 2, 2)
+sns.boxplot(x=data_final['target_salary'], color='lightgreen')
+plt.title('Боксплот зарплат (поиск аномалий)')
+plt.xlabel('Зарплата (руб.)')
+
+log_salary = np.log1p(data_final['target_salary'])
+plt.subplot(2, 2, 3)
+sns.histplot(log_salary, bins=50, kde=True, color='purple')
+plt.title('Распределение ЛОГАРИФМА зарплат')
+plt.xlabel('log(Зарплата + 1)')
+
+plt.subplot(2, 2, 4)
+import scipy.stats as stats
+stats.probplot(log_salary, dist="norm", plot=plt)
+plt.title('Q-Q Plot (логарифм зарплаты)')
+
+plt.tight_layout()
+plt.show()
